@@ -155,6 +155,7 @@ else
     echo
     cleanup_disk_state "$DISK"
     echo "Запускаю $PARTMODE. Создай GPT/UEFI-разметку самостоятельно."
+    echo "После выхода из $PARTMODE скрипт перечитает таблицу разделов."
     case "$PARTMODE" in
         cfdisk) cfdisk "$DISK" ;;
         fdisk)  fdisk "$DISK" ;;
@@ -169,7 +170,8 @@ else
 
     read -r -p "EFI раздел (например /dev/nvme0n1p1): " EFI
     read -r -p "ROOT раздел (например /dev/nvme0n1p2): " ROOT
-    read -r -p "SWAP раздел (или NONE): " SWAP
+    read -r -p "SWAP раздел (Enter = без swap): " SWAP
+    [[ -n "$SWAP" ]] || SWAP="NONE"
 
     [[ -b "$EFI" ]] || die "EFI раздел не найден."
     [[ -b "$ROOT" ]] || die "ROOT раздел не найден."
