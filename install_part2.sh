@@ -152,7 +152,7 @@ portage_emerge() {
 
 echo
 echo "Installing base tools..."
-portage_emerge     app-admin/sudo     app-editors/vim     app-editors/nano     dev-vcs/git     net-misc/curl     net-misc/wget     net-misc/rsync     sys-process/btop     sys-apps/man-pages     sys-apps/pciutils     sys-apps/usbutils     net-misc/openssh     net-misc/networkmanager     sys-apps/dbus     sys-auth/polkit     sys-auth/seatd     media-video/pipewire     media-video/wireplumber     media-libs/mesa     media-libs/libglvnd     media-libs/vulkan-loader     dev-libs/wayland     dev-libs/wayland-protocols     dev-libs/libinput     gui-apps/wayland-utils     x11-base/xwayland     x11-base/xorg-proto     x11-libs/libX11     x11-libs/libXext     x11-libs/libXrandr     x11-libs/libXrender     x11-libs/libXi     x11-libs/libXfixes     gui-apps/xdg-desktop-portal     app-shells/bash-completion
+portage_emerge     app-admin/sudo     app-editors/vim     app-editors/nano     dev-vcs/git     net-misc/curl     net-misc/wget     net-misc/rsync     sys-process/btop     sys-apps/man-pages     sys-apps/pciutils     sys-apps/usbutils     net-misc/openssh     net-misc/networkmanager     sys-apps/dbus     sys-auth/polkit     sys-auth/seatd     media-video/pipewire     media-video/wireplumber     media-libs/mesa     media-libs/libglvnd     media-libs/vulkan-loader     dev-libs/wayland     dev-libs/wayland-protocols     dev-libs/libinput     app-misc/wayland-utils     x11-base/xwayland     x11-base/xorg-proto     x11-libs/libX11     x11-libs/libXext     x11-libs/libXrandr     x11-libs/libXrender     x11-libs/libXi     x11-libs/libXfixes     gui-apps/xdg-desktop-portal     app-shells/bash-completion
 
 echo
 echo "NVIDIA + firmware + Bluetooth..."
