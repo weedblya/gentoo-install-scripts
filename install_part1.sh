@@ -9,22 +9,22 @@ TARGET="/mnt/gentoo"
 DIST="https://distfiles.gentoo.org/releases/amd64/autobuilds"
 
 die(){ echo "[FATAL] $*" >&2; exit 1; }
-need(){ command -v "$1" >/dev/null 2>&1 || die "Не найдено: $1"; }
+need(){ command -v "$1" >/dev/null 2>&1 || die "Not found: $1"; }
 confirm(){
     local prompt="$1" ans
     read -r -p "$prompt [yes/NO]: " ans
     [[ "$ans" == "yes" ]]
 }
 
-[[ $EUID -eq 0 ]] || die "Запускай от root."
-[[ -d /sys/firmware/efi ]] || die "Live ISO загружен не в UEFI режиме."
+[[ $EUID -eq 0 ]] || die "Run as root."
+[[ -d /sys/firmware/efi ]] || die "The Live ISO was not booted in UEFI mode."
 
 for x in awk curl findmnt lsblk mount umount mkfs.fat mkfs.ext4 mkswap swapoff sfdisk partprobe partx udevadm wipefs blkid tar sha256sum sed grep; do need "$x"; done
 
 cleanup_disk_state() {
     local disk="$1"
     local part target
-    echo "Освобождаю старые mount/swap состояния для $disk..."
+    echo "Releasing old mount/swap state for $disk..."
 
     # Unmount every mounted partition belonging to the selected disk.
     while read -r part; do
@@ -39,7 +39,7 @@ cleanup_disk_state() {
     while read -r part; do
         [[ -n "$part" ]] || continue
         if grep -qE "^$part " /proc/swaps 2>/dev/null; then
-            echo "Выключаю старый swap: $part"
+            echo "Disabling old swap: $part"
             swapoff "$part" || true
         fi
     done < <(lsblk -nrpo NAME,TYPE "$disk" | awk '$2=="part"{print $1}')
@@ -49,7 +49,7 @@ cleanup_disk_state() {
 
 reread_partition_table() {
     local disk="$1"
-    echo "Обновляю таблицу разделов ядра..."
+    echo "Refreshing the kernel partition table..."
     partprobe "$disk" 2>/dev/null || true
     partx -u "$disk" 2>/dev/null || true
     udevadm settle 2>/dev/null || true
@@ -59,19 +59,19 @@ reread_partition_table() {
 echo
 echo "=============================================="
 echo " Gentoo automated installer — PART 1"
-echo " До chroot. Разметка + Stage 3 + fstab."
+echo " Before chroot: partitioning + Stage 3 + fstab."
 echo "=============================================="
 echo
 
 lsblk -e7 -o NAME,SIZE,TYPE,FSTYPE,FSVER,LABEL,MOUNTPOINTS,MODEL
 
 echo
-read -r -p "Диск для установки (например /dev/nvme0n1): " DISK
-[[ -b "$DISK" ]] || die "Это не блочное устройство: $DISK"
-[[ "$(lsblk -dn -o TYPE "$DISK")" == "disk" ]] || die "Нужен целый диск, а не раздел."
+read -r -p "Installation disk (e.g. /dev/nvme0n1): " DISK
+[[ -b "$DISK" ]] || die "Not a block device: $DISK"
+[[ "$(lsblk -dn -o TYPE "$DISK")" == "disk" ]] || die "A whole disk is required, not a partition."
 
 echo
-echo "Профиль:"
+echo "Profile:"
 select PROFILE in gentoo_base gentoo_niri gentoo_hyprland; do
     [[ -n "${PROFILE:-}" ]] && break
 done
@@ -83,28 +83,28 @@ select INIT in systemd OpenRC; do
 done
 
 echo
-echo "Разметка:"
+echo "Partitioning:"
 select PARTMODE in automatic cfdisk fdisk parted; do
     [[ -n "${PARTMODE:-}" ]] && break
 done
 
 echo
-echo "Выбрано:"
-echo "  Диск:    $DISK"
-echo "  Профиль: $PROFILE"
+echo "Selected:"
+echo "  Disk:    $DISK"
+echo "  Profile: $PROFILE"
 echo "  Init:    $INIT"
-echo "  Режим:   $PARTMODE"
+echo "  Mode:   $PARTMODE"
 echo
 
 if [[ "$PARTMODE" == automatic ]]; then
     echo
-    read -r -p "Размер swap (например 16G, 8G или NONE): " SWAP_SIZE
+    read -r -p "Swap size (e.g. 16G, 8G or NONE): " SWAP_SIZE
     SWAP_SIZE="${SWAP_SIZE// /}"
     if [[ "$SWAP_SIZE" != NONE && ! "$SWAP_SIZE" =~ ^[1-9][0-9]*[MG]$ ]]; then
-        die "Некорректный размер swap. Используй формат вроде 8G, 16G или NONE."
+        die "Invalid swap size. Use a format such as 8G, 16G or NONE."
     fi
 
-    confirm "ВНИМАНИЕ: $DISK будет ПОЛНОСТЬЮ СТЁРТ." || die "Отменено."
+    confirm "WARNING: $DISK will be COMPLETELY ERASED." || die "Cancelled."
 
     cleanup_disk_state "$DISK"
     umount -R "$TARGET" 2>/dev/null || true
@@ -132,30 +132,30 @@ EOF
 
     mapfile -t PARTS < <(lsblk -nrpo NAME,TYPE "$DISK" | awk '$2=="part"{print $1}')
     if [[ "$SWAP_SIZE" == NONE ]]; then
-        [[ ${#PARTS[@]} -ge 2 ]] || die "Не удалось определить EFI и root."
+        [[ ${#PARTS[@]} -ge 2 ]] || die "Could not determine EFI and root."
         EFI="${PARTS[0]}"
         SWAP="NONE"
         ROOT="${PARTS[1]}"
     else
-        [[ ${#PARTS[@]} -ge 3 ]] || die "Не удалось определить EFI, swap и root."
+        [[ ${#PARTS[@]} -ge 3 ]] || die "Could not determine EFI, swap and root."
         EFI="${PARTS[0]}"
         SWAP="${PARTS[1]}"
         ROOT="${PARTS[2]}"
     fi
 
-    echo "Автоматически:"
+    echo "Automatic:"
     echo "  EFI : $EFI  (1 GiB)"
     if [[ "$SWAP_SIZE" == NONE ]]; then
-        echo "  swap: отключён"
+        echo "  swap: disabled"
     else
         echo "  swap: $SWAP ($SWAP_SIZE)"
     fi
-    echo "  root: $ROOT (остальное)"
+    echo "  root: $ROOT (remaining space)"
 else
     echo
     cleanup_disk_state "$DISK"
-    echo "Запускаю $PARTMODE. Создай GPT/UEFI-разметку самостоятельно."
-    echo "После выхода из $PARTMODE скрипт перечитает таблицу разделов."
+    echo "Starting $PARTMODE. Create the GPT/UEFI partition layout manually."
+    echo "After exiting $PARTMODE, the script will reread the partition table."
     case "$PARTMODE" in
         cfdisk) cfdisk "$DISK" ;;
         fdisk)  fdisk "$DISK" ;;
@@ -168,24 +168,24 @@ else
     lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS "$DISK"
     echo
 
-    read -r -p "EFI раздел (например /dev/nvme0n1p1): " EFI
-    read -r -p "ROOT раздел (например /dev/nvme0n1p2): " ROOT
-    read -r -p "SWAP раздел (Enter = без swap): " SWAP
+    read -r -p "EFI partition (e.g. /dev/nvme0n1p1): " EFI
+    read -r -p "ROOT partition (e.g. /dev/nvme0n1p2): " ROOT
+    read -r -p "SWAP partition (Enter = no swap): " SWAP
     [[ -n "$SWAP" ]] || SWAP="NONE"
 
-    [[ -b "$EFI" ]] || die "EFI раздел не найден."
-    [[ -b "$ROOT" ]] || die "ROOT раздел не найден."
-    [[ "$SWAP" == NONE || -b "$SWAP" ]] || die "SWAP раздел не найден."
+    [[ -b "$EFI" ]] || die "EFI partition not found."
+    [[ -b "$ROOT" ]] || die "ROOT partition not found."
+    [[ "$SWAP" == NONE || -b "$SWAP" ]] || die "SWAP partition not found."
 
-    confirm "Сейчас будут отформатированы EFI=$EFI и ROOT=$ROOT. Продолжить?" || die "Отменено."
+    confirm "The following will be formatted: EFI=$EFI и ROOT=$ROOT. Continue?" || die "Cancelled."
 fi
 
 echo
-echo "Форматирование:"
+echo "Formatting:"
 echo "  EFI : $EFI -> FAT32"
 echo "  ROOT: $ROOT -> ext4"
 [[ "$SWAP" != NONE ]] && echo "  SWAP: $SWAP -> swap"
-confirm "Подтвердить форматирование?" || die "Отменено."
+confirm "Confirm formatting?" || die "Cancelled."
 
 mkfs.fat -F 32 "$EFI"
 mkfs.ext4 -F "$ROOT"
@@ -211,11 +211,11 @@ TMPDIR="$(mktemp -d /tmp/gentoo-stage3.XXXXXX)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 echo
-echo "Получаю актуальный Stage 3:"
+echo "Downloading the current Stage 3:"
 curl -fL --retry 5 --retry-all-errors -o "$TMPDIR/latest.txt" "$META_URL"
 
 STAGE_FILE="$(awk '$1 ~ /^stage3-amd64-.*\.tar\.xz$/ {print $1; exit}' "$TMPDIR/latest.txt")"
-[[ -n "$STAGE_FILE" ]] || die "Не найден Stage 3 в $META_URL"
+[[ -n "$STAGE_FILE" ]] || die "Stage 3 not found in $META_URL"
 
 STAGE_URL="$DIST/$STAGE_DIR/$STAGE_FILE"
 SHA_URL="$STAGE_URL.sha256"
@@ -224,10 +224,10 @@ curl -fL --retry 5 --retry-all-errors -o "$TMPDIR/stage3.tar.xz" "$STAGE_URL"
 curl -fL --retry 5 --retry-all-errors -o "$TMPDIR/stage3.tar.xz.sha256" "$SHA_URL"
 
 cd "$TMPDIR"
-echo "Проверка SHA256..."
+echo "Checking SHA256..."
 sha256sum -c stage3.tar.xz.sha256
 
-echo "Распаковка Stage 3..."
+echo "Extracting Stage 3..."
 tar xpf stage3.tar.xz -C "$TARGET" --xattrs-include='*.*' --numeric-owner
 
 cat > "$TARGET/etc/portage/repos.conf/gentoo.conf" <<'EOF'
@@ -265,7 +265,7 @@ STAGE3="$STAGE_FILE"
 EOF
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-[[ -f "$SCRIPT_DIR/install_part2.sh" ]] || die "install_part2.sh должен лежать рядом с install_part1.sh."
+[[ -f "$SCRIPT_DIR/install_part2.sh" ]] || die "install_part2.sh must be located next to install_part1.sh."
 install -m 0755 "$SCRIPT_DIR/install_part2.sh" "$TARGET/root/install_part2.sh"
 
 if [[ -f /etc/resolv.conf ]]; then
@@ -276,10 +276,10 @@ cp "$LOG" "$TARGET/root/gentoo-install-part1.log" || true
 
 echo
 echo "=============================================="
-echo " PART 1 завершён."
+echo " PART 1 completed."
 echo "=============================================="
 echo
-echo "Теперь вручную:"
+echo "Now run manually:"
 echo
 cat <<'EOF'
 mount --types proc /proc /mnt/gentoo/proc
