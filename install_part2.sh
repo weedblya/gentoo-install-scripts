@@ -145,7 +145,6 @@ portage_emerge() {
         fi
         echo "[WARN] emerge failed; applying generated Portage config and retrying..."
         etc-update --automode -5 || true
-        emerge --regen || true
         ((tries++))
     done
     return 1
