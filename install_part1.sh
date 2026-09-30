@@ -177,7 +177,7 @@ else
     [[ -b "$ROOT" ]] || die "ROOT partition not found."
     [[ "$SWAP" == NONE || -b "$SWAP" ]] || die "SWAP partition not found."
 
-    confirm "The following will be formatted: EFI=$EFI и ROOT=$ROOT. Continue?" || die "Cancelled."
+    confirm "The following will be formatted: EFI=$EFI and ROOT=$ROOT. Continue?" || die "Cancelled."
 fi
 
 echo
