@@ -62,6 +62,13 @@ echo "  Режим:   $PARTMODE"
 echo
 
 if [[ "$PARTMODE" == automatic ]]; then
+    echo
+    read -r -p "Размер swap (например 16G, 8G или NONE): " SWAP_SIZE
+    SWAP_SIZE="${SWAP_SIZE// /}"
+    if [[ "$SWAP_SIZE" != NONE && ! "$SWAP_SIZE" =~ ^[1-9][0-9]*[MG]$ ]]; then
+        die "Некорректный размер swap. Используй формат вроде 8G, 16G или NONE."
+    fi
+
     confirm "ВНИМАНИЕ: $DISK будет ПОЛНОСТЬЮ СТЁРТ." || die "Отменено."
 
     umount -R "$TARGET" 2>/dev/null || true
@@ -71,25 +78,43 @@ if [[ "$PARTMODE" == automatic ]]; then
     sfdisk --delete "$DISK" 2>/dev/null || true
     sync
 
-    sfdisk "$DISK" <<'EOF'
+    if [[ "$SWAP_SIZE" == NONE ]]; then
+        sfdisk "$DISK" <<'EOF'
 label: gpt
 ,1G,U
-,16G,S
 ,,L
 EOF
+    else
+        sfdisk "$DISK" <<EOF
+label: gpt
+,1G,U
+,$SWAP_SIZE,S
+,,L
+EOF
+    fi
     partprobe "$DISK" 2>/dev/null || true
     sleep 2
 
     mapfile -t PARTS < <(lsblk -nrpo NAME,TYPE "$DISK" | awk '$2=="part"{print $1}')
-    [[ ${#PARTS[@]} -ge 3 ]] || die "Не удалось определить 3 раздела."
-
-    EFI="${PARTS[0]}"
-    SWAP="${PARTS[1]}"
-    ROOT="${PARTS[2]}"
+    if [[ "$SWAP_SIZE" == NONE ]]; then
+        [[ ${#PARTS[@]} -ge 2 ]] || die "Не удалось определить EFI и root."
+        EFI="${PARTS[0]}"
+        SWAP="NONE"
+        ROOT="${PARTS[1]}"
+    else
+        [[ ${#PARTS[@]} -ge 3 ]] || die "Не удалось определить EFI, swap и root."
+        EFI="${PARTS[0]}"
+        SWAP="${PARTS[1]}"
+        ROOT="${PARTS[2]}"
+    fi
 
     echo "Автоматически:"
     echo "  EFI : $EFI  (1 GiB)"
-    echo "  swap: $SWAP (16 GiB)"
+    if [[ "$SWAP_SIZE" == NONE ]]; then
+        echo "  swap: отключён"
+    else
+        echo "  swap: $SWAP ($SWAP_SIZE)"
+    fi
     echo "  root: $ROOT (остальное)"
 else
     echo
