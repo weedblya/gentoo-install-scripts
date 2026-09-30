@@ -65,7 +65,7 @@ EOF
 cat > /etc/portage/package.use/20-desktop-installer <<'EOF'
 media-video/pipewire dbus sound-server pipewire-alsa pipewire-pulse bluetooth
 media-video/wireplumber elogind
-gui-libs/xdg-desktop-portal wayland
+sys-apps/xdg-desktop-portal wayland
 x11-base/xwayland libei
 media-libs/mesa vulkan wayland
 gui-apps/waybar wayland
@@ -221,7 +221,7 @@ case "$PROFILE" in
         portage_emerge             gui-wm/niri::guru             gui-apps/waybar             gui-apps/fuzzel             gui-apps/mako             gui-apps/swaybg             gui-apps/swayidle             gui-apps/swaylock             x11-misc/ly::guru
         ;;
     gentoo_hyprland)
-        portage_emerge             gui-wm/hyprland             gui-apps/waybar             gui-libs/xdg-desktop-portal-hyprland             gui-apps/hyprlock             gui-apps/hypridle             gui-apps/hyprpaper             gui-apps/hyprpicker             x11-misc/ly::guru
+        portage_emerge             gui-wm/hyprland             gui-apps/waybar             sys-apps/xdg-desktop-portal-hyprland             gui-apps/hyprlock             gui-apps/hypridle             gui-apps/hyprpaper             gui-apps/hyprpicker             x11-misc/ly::guru
         ;;
 esac
 
