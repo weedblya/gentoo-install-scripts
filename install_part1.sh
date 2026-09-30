@@ -207,7 +207,10 @@ curl -fL --retry 5 --retry-all-errors -o "$TMPDIR/stage3.tar.xz.sha256" "$SHA_UR
 
 cd "$TMPDIR"
 echo "Checking SHA256..."
-sha256sum -c stage3.tar.xz.sha256
+EXPECTED_SHA="$(awk '$1 !~ /^#/ {print $1; exit}' stage3.tar.xz.sha256)"
+ACTUAL_SHA="$(sha256sum stage3.tar.xz | awk '{print $1}')"
+[[ "$EXPECTED_SHA" == "$ACTUAL_SHA" ]] || die "SHA256 verification failed."
+echo "SHA256 verification passed."
 
 echo "Extracting Stage 3..."
 tar xpf stage3.tar.xz -C "$TARGET" --xattrs-include='*.*' --numeric-owner
