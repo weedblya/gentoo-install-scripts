@@ -1,4 +1,4 @@
-# Gentoo Install Scripts
+# Gentoo Install Scripts -- BETA!!!
 
 Автоматизированная установка Gentoo AMD64 из Gentoo Live ISO.
 
