@@ -49,7 +49,7 @@ cat > /etc/portage/make.conf/00-installer <<EOF
 # Gentoo installer settings. Existing Stage 3 make.conf is preserved.
 MAKEOPTS="-j${JOBS}"
 GRUB_PLATFORMS="efi-64"
-FEATURES="${FEATURES} getbinpkg binpkg-request-signature"
+FEATURES="${FEATURES-} getbinpkg binpkg-request-signature"
 EOF
 
 # NVIDIA is package-specific, not a global unstable switch.
