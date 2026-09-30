@@ -7,6 +7,7 @@ trap 'echo "[ERROR] line $LINENO: $BASH_COMMAND" >&2' ERR
 
 TARGET="/mnt/gentoo"
 DIST="https://distfiles.gentoo.org/releases/amd64/autobuilds"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 die(){ echo "[FATAL] $*" >&2; exit 1; }
 need(){ command -v "$1" >/dev/null 2>&1 || die "Not found: $1"; }
@@ -247,7 +248,6 @@ SWAP="$SWAP"
 STAGE3="$STAGE_FILE"
 EOF
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$SCRIPT_DIR/install_part2.sh" ]] || die "install_part2.sh must be located next to install_part1.sh."
 install -m 0755 "$SCRIPT_DIR/install_part2.sh" "$TARGET/root/install_part2.sh"
 
