@@ -8,12 +8,12 @@ trap 'echo "[ERROR] line $LINENO: $BASH_COMMAND" >&2' ERR
 CONF="/root/gentoo-installer.conf"
 die(){ echo "[FATAL] $*" >&2; exit 1; }
 
-[[ $EUID -eq 0 ]] || die "Запускай от root."
-[[ -f /etc/gentoo-release ]] || die "Похоже, это не установленная Gentoo."
-[[ -f "$CONF" ]] || die "Нет $CONF."
-[[ -d /proc ]] || die "/proc не смонтирован."
-mountpoint -q /sys || die "/sys не смонтирован."
-mountpoint -q /dev || die "/dev не смонтирован."
+[[ $EUID -eq 0 ]] || die "Run as root."
+[[ -f /etc/gentoo-release ]] || die "This does not appear to be an installed Gentoo system."
+[[ -f "$CONF" ]] || die "Missing $CONF."
+[[ -d /proc ]] || die "/proc is not mounted."
+mountpoint -q /sys || die "/sys is not mounted."
+mountpoint -q /dev || die "/dev is not mounted."
 
 source "$CONF"
 
@@ -110,12 +110,12 @@ if command -v eselect >/dev/null 2>&1; then
     if eselect profile list | grep -q "$PROFILE_TARGET"; then
         eselect profile set "$PROFILE_TARGET"
     else
-        echo "[WARN] Не найден профиль $PROFILE_TARGET; оставляю профиль Stage 3."
+        echo "[WARN] Profile not found $PROFILE_TARGET; keeping the Stage 3 profile."
     fi
 fi
 
 echo
-echo "Устанавливаю eselect-repository..."
+echo "Installing eselect-repository..."
 emerge --ask=n --verbose --getbinpkg     --autounmask=y --autounmask-write=y --autounmask-unrestricted-atoms=y     --backtrack=30 app-eselect/eselect-repository
 
 # Official alternate repositories.
@@ -152,7 +152,7 @@ portage_emerge() {
 }
 
 echo
-echo "Установка базовых инструментов..."
+echo "Installing base tools..."
 portage_emerge     app-admin/sudo     app-editors/vim     app-editors/nano     dev-vcs/git     net-misc/curl     net-misc/wget     net-misc/rsync     app-admin/btop     sys-apps/man-pages     sys-apps/pciutils     sys-apps/usbutils     net-misc/openssh     net-misc/networkmanager     sys-apps/dbus     sys-auth/polkit     sys-auth/seatd     media-video/pipewire     media-video/wireplumber     media-libs/mesa     media-libs/libglvnd     media-libs/vulkan-loader     dev-libs/wayland     dev-libs/wayland-protocols     dev-libs/libinput     gui-apps/wayland-utils     x11-base/xwayland     x11-base/xorg-proto     x11-libs/libX11     x11-libs/libXext     x11-libs/libXrandr     x11-libs/libXrender     x11-libs/libXi     x11-libs/libXfixes     gui-apps/xdg-desktop-portal     app-shells/bash-completion
 
 echo
@@ -164,9 +164,9 @@ echo
 echo "=== ROOT PASSWORD ==="
 passwd root
 
-read -r -p "Имя нового пользователя: " USERNAME
-[[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "Некорректное имя пользователя."
-id "$USERNAME" >/dev/null 2>&1 && die "Пользователь уже существует."
+read -r -p "New username: " USERNAME
+[[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "Invalid username."
+id "$USERNAME" >/dev/null 2>&1 && die "User already exists."
 
 for g in wheel video audio render input; do
     getent group "$g" >/dev/null || groupadd "$g"
@@ -174,7 +174,7 @@ done
 getent group seat >/dev/null && EXTRA_GROUPS=",seat" || EXTRA_GROUPS=""
 useradd -m -s /bin/bash -G "wheel,video,audio,render,input${EXTRA_GROUPS}" "$USERNAME"
 
-echo "Пароль пользователя $USERNAME:"
+echo "Password for user $USERNAME:"
 passwd "$USERNAME"
 
 install -d -m 0750 /etc/sudoers.d
@@ -186,13 +186,13 @@ visudo -c
 
 # Kernel: source gentoo-kernel, never gentoo-kernel-bin.
 echo
-echo "Устанавливаю gentoo-kernel (локальная сборка)..."
+echo "Installing gentoo-kernel (local build)..."
 portage_emerge --usepkg=n --buildpkg=n sys-kernel/gentoo-kernel
 
 # Init/system services.
 if [[ "$INIT" == systemd ]]; then
     echo
-    echo "Настройка systemd..."
+    echo "Configuring systemd..."
     systemd-machine-id-setup || true
     systemctl preset-all --preset-mode=enable-only || true
     systemctl enable NetworkManager.service || true
@@ -200,7 +200,7 @@ if [[ "$INIT" == systemd ]]; then
     systemctl enable bluetooth.service || true
 else
     echo
-    echo "Настройка OpenRC..."
+    echo "Configuring OpenRC..."
     rc-update add dbus default || true
     rc-update add NetworkManager default || true
     rc-update add sshd default || true
@@ -231,13 +231,13 @@ if [[ "$PROFILE" != gentoo_base ]]; then
         if systemctl list-unit-files ly.service >/dev/null 2>&1; then
             systemctl enable ly.service
         else
-            echo "[WARN] ly.service не найден; проверь установку Ly вручную."
+            echo "[WARN] ly.service not found; check the Ly installation manually."
         fi
     else
         if rc-service ly status >/dev/null 2>&1 || [[ -x /etc/init.d/ly ]]; then
             rc-update add ly default
         else
-            echo "[WARN] /etc/init.d/ly не найден; проверь установку Ly вручную."
+            echo "[WARN]/etc/init.d/ly not found; check the Ly installation manually."
         fi
     fi
 fi
@@ -252,17 +252,17 @@ env-update
 
 # Sanity checks before the final world rebuild.
 echo
-echo "Проверяю выбранный профиль и репозитории..."
+echo "Checking selected profile and repositories..."
 eselect profile show || true
 eselect repository list || true
 
 # Final world rebuild after all USE/profile/repository changes.
 echo
-echo "Финальный @world..."
+echo "Final @world rebuild..."
 portage_emerge @world
 
 echo
-echo "Установка GRUB..."
+echo "Installing GRUB..."
 portage_emerge sys-boot/grub
 grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=Gentoo --recheck
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -295,17 +295,17 @@ cp "$LOG" /root/gentoo-install-part2-final.log || true
 
 echo
 echo "=============================================="
-echo " ГОТОВО."
+echo " DONE."
 echo "=============================================="
-echo "Установочная система завершена."
+echo "The installation is complete."
 echo
-echo "Перед reboot можно проверить:"
+echo "Before reboot, you can check:"
 echo "  emerge --info"
 echo "  eselect profile show"
 echo "  eselect repository list"
 echo "  emerge -pv @world"
 echo
-echo "После выхода из chroot:"
+echo "After exiting chroot:"
 echo "  exit"
 echo "  umount -R /mnt/gentoo"
 echo "  reboot"
