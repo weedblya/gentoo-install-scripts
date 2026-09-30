@@ -19,7 +19,42 @@ confirm(){
 [[ $EUID -eq 0 ]] || die "Запускай от root."
 [[ -d /sys/firmware/efi ]] || die "Live ISO загружен не в UEFI режиме."
 
-for x in awk curl findmnt lsblk mount mkfs.fat mkfs.ext4 mkswap sfdisk tar sha256sum sed grep; do need "$x"; done
+for x in awk curl findmnt lsblk mount umount mkfs.fat mkfs.ext4 mkswap swapoff sfdisk partprobe partx udevadm wipefs blkid tar sha256sum sed grep; do need "$x"; done
+
+cleanup_disk_state() {
+    local disk="$1"
+    local part target
+    echo "Освобождаю старые mount/swap состояния для $disk..."
+
+    # Unmount every mounted partition belonging to the selected disk.
+    while read -r part; do
+        [[ -n "$part" ]] || continue
+        while read -r target; do
+            [[ -n "$target" ]] || continue
+            umount "$target" 2>/dev/null || umount -l "$target" 2>/dev/null || true
+        done < <(findmnt -rn -S "$part" -o TARGET 2>/dev/null || true)
+    done < <(lsblk -nrpo NAME,TYPE "$disk" | awk '$2=="part"{print $1}')
+
+    # A previous failed run may have activated the old swap partition.
+    while read -r part; do
+        [[ -n "$part" ]] || continue
+        if grep -qE "^$part " /proc/swaps 2>/dev/null; then
+            echo "Выключаю старый swap: $part"
+            swapoff "$part" || true
+        fi
+    done < <(lsblk -nrpo NAME,TYPE "$disk" | awk '$2=="part"{print $1}')
+
+    sync
+}
+
+reread_partition_table() {
+    local disk="$1"
+    echo "Обновляю таблицу разделов ядра..."
+    partprobe "$disk" 2>/dev/null || true
+    partx -u "$disk" 2>/dev/null || true
+    udevadm settle 2>/dev/null || true
+    sleep 2
+}
 
 echo
 echo "=============================================="
@@ -71,6 +106,7 @@ if [[ "$PARTMODE" == automatic ]]; then
 
     confirm "ВНИМАНИЕ: $DISK будет ПОЛНОСТЬЮ СТЁРТ." || die "Отменено."
 
+    cleanup_disk_state "$DISK"
     umount -R "$TARGET" 2>/dev/null || true
     mkdir -p "$TARGET"
 
@@ -92,8 +128,7 @@ label: gpt
 ,,L
 EOF
     fi
-    partprobe "$DISK" 2>/dev/null || true
-    sleep 2
+    reread_partition_table "$DISK"
 
     mapfile -t PARTS < <(lsblk -nrpo NAME,TYPE "$DISK" | awk '$2=="part"{print $1}')
     if [[ "$SWAP_SIZE" == NONE ]]; then
@@ -118,6 +153,7 @@ EOF
     echo "  root: $ROOT (остальное)"
 else
     echo
+    cleanup_disk_state "$DISK"
     echo "Запускаю $PARTMODE. Создай GPT/UEFI-разметку самостоятельно."
     case "$PARTMODE" in
         cfdisk) cfdisk "$DISK" ;;
@@ -125,8 +161,7 @@ else
         parted) parted "$DISK" ;;
     esac
 
-    partprobe "$DISK" 2>/dev/null || true
-    sleep 2
+    reread_partition_table "$DISK"
 
     echo
     lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS "$DISK"
