@@ -101,7 +101,7 @@ if [[ "$PARTMODE" == automatic ]]; then
     echo
     read -r -p "Swap size (e.g. 16G or 8G): " SWAP_SIZE
     SWAP_SIZE="${SWAP_SIZE// /}"
-    [[ "$SWAP_SIZE" =~ ^[1-9][0-9]*[MG]$ ]] || die "Invalid swap size. Use a format such as 8G or 16G."
+    [[ "$SWAP_SIZE" == "NONE" || "$SWAP_SIZE" =~ ^[1-9][0-9]*[MG]$ ]] || die "Invalid swap size. Use NONE or a format such as 8G or 16G."
 
     confirm "WARNING: $DISK will be COMPLETELY ERASED." || die "Cancelled."
 
@@ -113,19 +113,34 @@ if [[ "$PARTMODE" == automatic ]]; then
     sfdisk --delete "$DISK" 2>/dev/null || true
     sync
 
-    sfdisk "$DISK" <<EOF
+    if [[ "$SWAP_SIZE" == "NONE" ]]; then
+        sfdisk "$DISK" <<EOF
+label: gpt
+,1G,U
+,,L
+EOF
+    else
+        sfdisk "$DISK" <<EOF
 label: gpt
 ,1G,U
 ,$SWAP_SIZE,S
 ,,L
 EOF
+    fi
     reread_partition_table "$DISK"
 
     mapfile -t PARTS < <(lsblk -nrpo NAME,TYPE "$DISK" | awk '$2=="part"{print $1}')
-    [[ ${#PARTS[@]} -ge 3 ]] || die "Could not determine EFI, swap and root."
-    EFI="${PARTS[0]}"
-    SWAP="${PARTS[1]}"
-    ROOT="${PARTS[2]}"
+    if [[ "$SWAP_SIZE" == "NONE" ]]; then
+        [[ ${#PARTS[@]} -ge 2 ]] || die "Could not determine EFI and root."
+        EFI="${PARTS[0]}"
+        SWAP="NONE"
+        ROOT="${PARTS[1]}"
+    else
+        [[ ${#PARTS[@]} -ge 3 ]] || die "Could not determine EFI, swap and root."
+        EFI="${PARTS[0]}"
+        SWAP="${PARTS[1]}"
+        ROOT="${PARTS[2]}"
+    fi
 
     echo "Automatic:"
     echo "  EFI : $EFI  (1 GiB)"
@@ -154,11 +169,12 @@ else
 
     read -r -p "EFI partition (e.g. /dev/nvme0n1p1): " EFI
     read -r -p "ROOT partition (e.g. /dev/nvme0n1p2): " ROOT
-    read -r -p "SWAP partition (Enter = no swap): " SWAP
+    read -r -p "SWAP partition (Enter or NONE = no swap): " SWAP
+    [[ -n "$SWAP" ]] || SWAP="NONE"
 
     [[ -b "$EFI" ]] || die "EFI partition not found."
     [[ -b "$ROOT" ]] || die "ROOT partition not found."
-    [[ -z "$SWAP" || -b "$SWAP" ]] || die "SWAP partition not found."
+    [[ "$SWAP" == "NONE" || -b "$SWAP" ]] || die "SWAP partition not found."
 
     confirm "The following will be formatted: EFI=$EFI and ROOT=$ROOT. Continue?" || die "Cancelled."
 fi
@@ -172,7 +188,7 @@ confirm "Confirm formatting?" || die "Cancelled."
 
 mkfs.fat -F 32 "$EFI"
 mkfs.ext4 -F "$ROOT"
-if [[ -n "$SWAP" ]]; then
+if [[ "$SWAP" != "NONE" ]]; then
     mkswap "$SWAP"
     swapon "$SWAP"
 fi
