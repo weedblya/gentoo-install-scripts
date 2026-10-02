@@ -37,6 +37,17 @@ fi
 
 mkdir -p     /etc/portage/package.use     /etc/portage/package.accept_keywords     /etc/portage/package.unmask     /etc/portage/package.mask     /etc/portage/repos.conf     /etc/portage/binrepos.conf
 
+# Arch-like package availability mode:
+# ignore package.mask and allow stable + unstable (~amd64) ebuilds.
+# Hard -amd64 masks and dependency/USE conflicts can still block a package.
+cat > /etc/portage/package.unmask/99-installer-unmask-all <<'EOF'
+*/*
+EOF
+
+cat > /etc/portage/package.accept_keywords/99-installer-unstable-all <<'EOF'
+*/* ~amd64
+EOF
+
 # Hardware-independent Portage settings.
 # Portage supports /etc/portage/make.conf as a directory; fragments are read
 # in lexical order and merged into the final configuration.
