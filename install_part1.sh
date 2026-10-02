@@ -99,9 +99,18 @@ echo
 
 if [[ "$PARTMODE" == automatic ]]; then
     echo
-    read -r -p "Swap size (e.g. 16G or 8G): " SWAP_SIZE
-    SWAP_SIZE="${SWAP_SIZE// /}"
-    [[ "$SWAP_SIZE" == "NONE" || "$SWAP_SIZE" =~ ^[1-9][0-9]*[MG]$ ]] || die "Invalid swap size. Use NONE or a format such as 8G or 16G."
+    echo "Swap:"
+    select SWAP_CHOICE in yes no; do
+        [[ -n "${SWAP_CHOICE:-}" ]] && break
+    done
+
+    if [[ "$SWAP_CHOICE" == yes ]]; then
+        read -r -p "Swap size (e.g. 16G or 8G): " SWAP_SIZE
+        SWAP_SIZE="${SWAP_SIZE// /}"
+        [[ "$SWAP_SIZE" =~ ^[1-9][0-9]*[MG]$ ]] || die "Invalid swap size. Use a format such as 8G or 16G."
+    else
+        SWAP_SIZE="NONE"
+    fi
 
     confirm "WARNING: $DISK will be COMPLETELY ERASED." || die "Cancelled."
 
