@@ -73,7 +73,7 @@ read -r -p "Installation disk (e.g. /dev/nvme0n1): " DISK
 
 echo
 echo "Profile:"
-select PROFILE in gentoo_base gentoo_niri gentoo_hyprland; do
+select PROFILE in gentoo_base gentoo_niri gentoo_hyprland gentoo_kde; do
     [[ -n "${PROFILE:-}" ]] && break
 done
 

@@ -14,13 +14,22 @@
 Профили:
 
 - `gentoo_base` — базовая desktop-ready система без привязки к WM/DE; X11/Wayland и XWayland.
-- `gentoo_niri` — база + Niri, Waybar, fuzzel, mako, swaybg, swayidle, swaylock и Ly.
-- `gentoo_hyprland` — база + Hyprland, Waybar, portal Hyprland, hyprlock, hypridle, hyprpaper, hyprpicker и Ly.
+- `gentoo_niri` — база + Niri, Waybar, fuzzel, mako, swaybg, swayidle и swaylock; менеджер входа выбирается отдельно.
+- `gentoo_hyprland` — база + Hyprland, Waybar, portal Hyprland, hyprlock, hypridle, hyprpaper и hyprpicker; менеджер входа выбирается отдельно.
+- `gentoo_kde` — KDE Plasma 6, Dolphin и Konsole; использует отдельный Gentoo desktop/plasma profile для выбранного init. Менеджер входа выбирается отдельно (по умолчанию SDDM).
 
 Init:
 
 - systemd
 - OpenRC
+
+Менеджер входа выбирается во второй части установки:
+
+- **Ly** — минималистичный TUI-экран входа; удобен для Niri/Hyprland.
+- **SDDM** — графический экран входа; наиболее естественный вариант для KDE Plasma.
+- **greetd + tuigreet** — лёгкий TUI-вариант с выбором сессии.
+
+Для KDE по умолчанию предлагается SDDM, для остальных профилей — Ly. Выбор можно изменить в интерактивном меню.
 
 Ядро:
 
@@ -116,7 +125,7 @@ reboot
 
 Во второй части установщик запросит:
 
-- hostname системы;
+- hostname системы (по умолчанию `gentoo`);
 - пароль root;
 - имя нового пользователя;
 - пароль пользователя.
@@ -151,14 +160,7 @@ reboot
 
 При необходимости Portage-конфигурация применяется через `etc-update`.
 
-**Глобальный `~amd64` включается.**
-
-Это сделано специально для режима установки, похожего на Arch:
-пользователь может устанавливать больше пакетов без ручного добавления
-`package.accept_keywords`.
-
-Такой режим более агрессивный и может привести к использованию
-нестабильных версий пакетов.
+**Глобальный `~amd64` включается**, а обычные записи `package.mask` глобально перекрываются через `package.unmask`. Это сделано для установки пакетов с меньшим количеством ручных действий и приближает сценарий к модели Arch, но не гарантирует разрешение жёстких `-amd64` масок, конфликтов зависимостей или USE-флагов. Нестабильные версии могут чаще приводить к поломкам.
 
 ## Репозитории
 
@@ -167,6 +169,7 @@ reboot
 - Gentoo main repository;
 - GURU;
 - Hyprland profile дополнительно включает hyproverlay.
+- KDE Plasma использует официальный профиль Gentoo `desktop/plasma` (OpenRC) или `desktop/plasma/systemd`; профиль Plasma не навязывает SDDM: менеджер входа выбирается отдельно.
 
 ## Stage 3
 
