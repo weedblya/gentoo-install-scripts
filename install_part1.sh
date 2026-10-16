@@ -59,7 +59,7 @@ reread_partition_table() {
 
 echo
 echo "=============================================="
-echo " Gentoo automated installer — PART 1"
+echo " Gentoo automated installer by Blyadina — PART 1"
 echo " Before chroot: partitioning + Stage 3 + fstab."
 echo "=============================================="
 echo
