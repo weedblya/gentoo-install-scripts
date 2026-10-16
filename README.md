@@ -38,10 +38,16 @@ Init:
 - ядро собирается локально на устанавливаемой машине;
 - `MAKEOPTS` рассчитывается автоматически по CPU/RAM.
 
-NVIDIA:
+Видеокарта:
 
-- устанавливается `x11-drivers/nvidia-drivers`;
-- X11/Wayland поддержка включается через Portage USE.
+- перед разметкой установщик пытается определить GPU через `lspci` и показывает найденные устройства;
+- пользователь выбирает NVIDIA, AMD, Intel или Other;
+- NVIDIA: устанавливается проприетарный `x11-drivers/nvidia-drivers`;
+- AMD: используется драйвер ядра AMDGPU/Radeon, Mesa (OpenGL/Vulkan) и `sys-kernel/linux-firmware`; AMDGPU-PRO не устанавливается;
+- Intel: используются драйвер ядра Intel, Mesa и firmware;
+- Other: сохраняются настройки графики Stage 3/профиля.
+
+Для AMD в Portage включается `VIDEO_CARDS: -* amdgpu radeonsi`. Старые AMD/ATI GPU могут дополнительно требовать `radeon`.
 
 ## Разметка
 
@@ -67,7 +73,7 @@ NVIDIA:
 Если репозиторий уже доступен через GitHub:
 
 ```bash
-git clone https://github.com/weedblya/gentoo-install-scripts.git /root/gentoo-installer
+git clone https://github.com/weedblya/gentoo-installer.git /root/gentoo-installer
 cd /root/gentoo-installer
 chmod +x install_part1.sh install_part2.sh
 ./install_part1.sh
@@ -78,8 +84,9 @@ chmod +x install_part1.sh install_part2.sh
 1. диск;
 2. профиль;
 3. init;
-4. способ разметки;
-5. размер swap при автоматической разметке.
+4. производителя видеокарты (NVIDIA / AMD / Intel / Other);
+5. способ разметки;
+6. размер swap при автоматической разметке.
 
 Например, для автоматической разметки можно указать:
 

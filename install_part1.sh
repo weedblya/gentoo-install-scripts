@@ -84,6 +84,31 @@ select INIT in systemd OpenRC; do
 done
 
 echo
+GPU_INFO=""
+GPU_HINT="Other"
+if command -v lspci >/dev/null 2>&1; then
+    GPU_INFO="$(lspci -nn | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
+    if grep -qiE 'NVIDIA|10de:' <<<"$GPU_INFO"; then
+        GPU_HINT="NVIDIA"
+    elif grep -qiE 'AMD|ATI|1002:' <<<"$GPU_INFO"; then
+        GPU_HINT="AMD"
+    elif grep -qiE 'Intel|8086:' <<<"$GPU_INFO"; then
+        GPU_HINT="Intel"
+    fi
+fi
+
+echo "Graphics hardware detected by lspci:"
+if [[ -n "$GPU_INFO" ]]; then
+    printf '%s\n' "$GPU_INFO"
+else
+    echo "  Not detected (lspci unavailable or no display controller found)."
+fi
+echo "Choose GPU vendor (detected suggestion: $GPU_HINT):"
+select GPU_VENDOR in NVIDIA AMD Intel Other; do
+    [[ -n "${GPU_VENDOR:-}" ]] && break
+done
+
+echo
 echo "Partitioning:"
 select PARTMODE in automatic cfdisk fdisk parted; do
     [[ -n "${PARTMODE:-}" ]] && break
@@ -94,7 +119,8 @@ echo "Selected:"
 echo "  Disk:    $DISK"
 echo "  Profile: $PROFILE"
 echo "  Init:    $INIT"
-echo "  Mode:   $PARTMODE"
+echo "  GPU:     $GPU_VENDOR"
+echo "  Mode:    $PARTMODE"
 echo
 
 if [[ "$PARTMODE" == automatic ]]; then
@@ -267,6 +293,7 @@ fi
 cat > "$TARGET/root/gentoo-installer.conf" <<EOF
 PROFILE="$PROFILE"
 INIT="$INIT"
+GPU_VENDOR="$GPU_VENDOR"
 EFI="$EFI"
 ROOT="$ROOT"
 SWAP="$SWAP"
