@@ -22,6 +22,7 @@ echo "=============================================="
 echo " Gentoo automated installer — PART 2"
 echo " Profile: $PROFILE"
 echo " Init:    $INIT"
+echo " GPU:     ${GPU_VENDOR:-Other}"
 echo "=============================================="
 echo
 
@@ -85,14 +86,35 @@ GRUB_PLATFORMS="efi-64"
 FEATURES="${FEATURES-} getbinpkg binpkg-request-signature"
 EOF
 
-# NVIDIA is package-specific, not a global unstable switch.
-cat > /etc/portage/package.use/00-video_cards <<'EOF'
+# Configure VIDEO_CARDS according to the selection made in part 1.
+# AMD uses the open-source kernel driver (amdgpu) plus Mesa (radeonsi).
+rm -f /etc/portage/package.use/00-video_cards /etc/portage/package.use/10-nvidia
+case "${GPU_VENDOR:-Other}" in
+    NVIDIA)
+        cat > /etc/portage/package.use/00-video_cards <<'EOF'
 */* VIDEO_CARDS: -* nvidia
 EOF
-
-cat > /etc/portage/package.use/10-nvidia <<'EOF'
+        cat > /etc/portage/package.use/10-nvidia <<'EOF'
 x11-drivers/nvidia-drivers X wayland dist-kernel
 EOF
+        ;;
+    AMD)
+        cat > /etc/portage/package.use/00-video_cards <<'EOF'
+*/* VIDEO_CARDS: -* amdgpu radeonsi
+EOF
+        ;;
+    Intel)
+        cat > /etc/portage/package.use/00-video_cards <<'EOF'
+*/* VIDEO_CARDS: -* intel
+EOF
+        ;;
+    Other)
+        # Keep the Stage 3/profile defaults for unknown or virtual GPUs.
+        ;;
+    *)
+        die "Unknown GPU vendor in installer config: $GPU_VENDOR"
+        ;;
+esac
 
 # Common desktop stack.
 cat > /etc/portage/package.use/20-desktop-installer <<'EOF'
@@ -205,8 +227,26 @@ echo "Installing base tools..."
 portage_emerge     app-admin/sudo     app-editors/vim     app-editors/nano     dev-vcs/git     net-misc/curl     net-misc/wget     net-misc/rsync     sys-process/btop     sys-apps/man-pages     sys-apps/pciutils     sys-apps/usbutils     net-misc/openssh     net-misc/networkmanager     sys-apps/dbus     sys-auth/polkit     sys-auth/seatd     media-video/pipewire     media-video/wireplumber     media-libs/mesa     media-libs/libglvnd     media-libs/vulkan-loader     dev-libs/wayland     dev-libs/wayland-protocols     dev-libs/libinput     app-misc/wayland-utils     x11-base/xwayland     x11-base/xorg-proto     x11-libs/libX11     x11-libs/libXext     x11-libs/libXrandr     x11-libs/libXrender     x11-libs/libXi     x11-libs/libXfixes     sys-apps/xdg-desktop-portal     app-shells/bash-completion
 
 echo
-echo "NVIDIA + firmware + Bluetooth..."
-portage_emerge     x11-drivers/nvidia-drivers     sys-kernel/linux-firmware     net-wireless/bluez
+case "${GPU_VENDOR:-Other}" in
+    NVIDIA)
+        echo "Installing proprietary NVIDIA driver..."
+        portage_emerge x11-drivers/nvidia-drivers
+        ;;
+    AMD)
+        echo "Using the in-kernel AMDGPU/Radeon driver with Mesa; installing firmware..."
+        # AMD's kernel driver is provided by Linux; Mesa supplies OpenGL/Vulkan userspace.
+        portage_emerge sys-kernel/linux-firmware
+        ;;
+    Intel)
+        echo "Using the in-kernel Intel graphics driver with Mesa; installing firmware..."
+        portage_emerge sys-kernel/linux-firmware
+        ;;
+    Other)
+        echo "Keeping the default graphics driver stack; installing firmware..."
+        portage_emerge sys-kernel/linux-firmware
+        ;;
+esac
+portage_emerge net-wireless/bluez
 
 # Configure hostname for both systemd and OpenRC.
 echo
@@ -388,7 +428,9 @@ Repositories:
 $( [[ "$PROFILE" == gentoo_hyprland ]] && echo "- hyproverlay" )
 
 Important:
-- NVIDIA configured through package.use/00-video_cards. Global ~amd64 is enabled for Arch-like package availability.
+- GPU vendor: ${GPU_VENDOR:-Other}.
+- GPU-specific VIDEO_CARDS flags are configured in package.use/00-video_cards when applicable.
+- NVIDIA uses x11-drivers/nvidia-drivers; AMD uses the in-kernel AMDGPU/Radeon driver and Mesa; Intel uses the in-kernel driver and Mesa.
 - x11-base/xwayland is installed for every profile.
 - sys-kernel/gentoo-kernel is used, not gentoo-kernel-bin.
 EOF
