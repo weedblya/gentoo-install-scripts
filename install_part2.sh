@@ -19,7 +19,7 @@ source "$CONF"
 
 echo
 echo "=============================================="
-echo " Gentoo automated installer — PART 2"
+echo " Gentoo automated installer by Blyadina — PART 2"
 echo " Profile: $PROFILE"
 echo " Init:    $INIT"
 echo " GPU:     ${GPU_VENDOR:-Other}"
